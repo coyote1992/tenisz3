@@ -3,12 +3,14 @@ import Link from "next/link";
 import { CourtPlan } from "@/components/CourtPlan";
 import { PriceTable } from "@/components/PriceTable";
 import { MapEmbed } from "@/components/MapEmbed";
+import { Rally } from "@/components/Rally";
 import { ArrowRight, ArrowUpRight, Check, Phone } from "@/components/Icons";
 import { history, site, tennisPrices } from "@/lib/site";
 
 export default function Home() {
   return (
     <>
+      <Rally />
       {/* ------------------------------------------------ Hero */}
       <section className="hero" aria-labelledby="hero-title">
         <div className="hero__media">

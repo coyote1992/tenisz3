@@ -2922,3 +2922,52 @@ ol {
     display: inline;
   }
 }
+
+/* ---------- Rally (homepage scroll companion) ---------- */
+
+.c-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 30;
+}
+
+/* reserve side margins for the players on desktop */
+@media (min-width: 1000px) {
+  main .container {
+    padding-inline: max(var(--gutter), 112px);
+  }
+}
+@media (min-width: 1360px) {
+  main .container {
+    max-width: calc(1120px + var(--gutter) * 2);
+    padding-inline: var(--gutter);
+  }
+}
+
+.r-w {
+  display: inline-block;
+  transform-origin: 50% 100%;
+}
+
+.r-hit {
+  animation: r-dip 0.55s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+@keyframes r-dip {
+  0% { transform: none; }
+  18% { transform: translateY(5px) scale(1.04, 0.9); }
+  50% { transform: translateY(-1.5px); }
+  100% { transform: none; }
+}
+
+.r-dent {
+  animation: r-press 0.6s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+@keyframes r-press {
+  0% { transform: none; }
+  20% { transform: translateY(4px) scale(0.992); filter: brightness(0.96); }
+  55% { transform: translateY(-1px); }
+  100% { transform: none; }
+}
