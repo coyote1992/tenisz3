@@ -9,7 +9,7 @@ import { Phone } from "./Icons";
 
 export function Header() {
   const pathname = usePathname();
-  const overlay = pathname === "/";
+  const overlay = pathname === "/" || pathname === "/lab";
   const [solid, setSolid] = useState(!overlay);
   const [open, setOpen] = useState(false);
 
@@ -37,7 +37,7 @@ export function Header() {
   const isActive = (href: string) =>
     href.startsWith("/#") ? false : pathname === href || pathname.startsWith(href + "/");
 
-  const cls = ["header", overlay && "header--overlay", solid && "header--solid", open && "header--open"]
+  const cls = ["header", overlay && "header--overlay", pathname === "/lab" && "header--lab", solid && "header--solid", open && "header--open"]
     .filter(Boolean)
     .join(" ");
 
