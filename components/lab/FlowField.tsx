@@ -8,8 +8,9 @@ import { LabTag } from "./LabTag";
  * 86 · Spin flow field, after thedent.ai's ambient background.
  * A couple of thousand crisp dots on a 2D canvas. They start as a loose starfield and, as you
  * scroll, glide (each with its own small delay) into a ball, a racket, a serving player, the
- * court and the club's name. Morphs are eased slowly; every dot keeps a slow drift and twinkle,
- * and bigger dots shift more with the cursor, which reads as depth.
+ * court and the club's name. Morphs are eased slowly; every dot keeps a slow drift and twinkle.
+ * The cursor pushes the whole shape, not single dots: it drifts and tilts away from the pointer
+ * (bigger dots a touch more, for depth) and floats back to its place when left alone.
  */
 
 const STEPS = [
@@ -86,9 +87,7 @@ export function FlowField() {
 
     const setup = async () => {
       const mobile = innerWidth <= 768;
-      // about one dot per 760 px², capped; phones keep enough dots for the shapes to read
-      count = Math.min(2600, Math.floor((innerWidth * innerHeight) / 760));
-      if (mobile) count = Math.max(1100, Math.floor(count * 0.6));
+      count = mobile ? 3000 : 7000;
       rad = new Float32Array(count);
       ph = new Float32Array(count);
       spd = new Float32Array(count);
@@ -99,7 +98,7 @@ export function FlowField() {
       for (let i = 0; i < count; i++) {
         const pr = rand(i, 20);
         base[i] = pr < 0.45 ? 0 : pr < 0.75 ? 1 : pr < 0.9 ? 2 : 3;
-        rad[i] = 0.9 + rand(i, 21) * 1.7;
+        rad[i] = 0.75 + rand(i, 21) * 1.35;
         ph[i] = rand(i, 22) * TAU;
         spd[i] = 0.00026 + rand(i, 23) * 0.00016;
         tws[i] = 0.0007 + rand(i, 24) * 0.0008;
@@ -186,12 +185,21 @@ export function FlowField() {
       }
     };
 
-    let p = 0, lastT = 0, tmx = 0, tmy = 0, mcx = 0, mcy = 0;
+    let p = 0, lastT = 0;
+    // the pushed shape: offset and tilt with velocity (a soft spring), pointer in canvas px
+    let ox = 0, oy = 0, vx = 0, vy = 0, rot = 0, vr = 0, mx = -1e4, my = -1e4;
     const onMove = (e: PointerEvent) => {
-      tmx = (e.clientX / innerWidth) * 2 - 1;
-      tmy = (e.clientY / innerHeight) * 2 - 1;
+      const rc = c.getBoundingClientRect();
+      mx = e.clientX - rc.left;
+      my = e.clientY - rc.top;
     };
-    if (matchMedia("(hover:hover) and (pointer:fine)").matches) addEventListener("pointermove", onMove, { passive: true });
+    const onLeave = () => {
+      mx = my = -1e4;
+    };
+    sec.addEventListener("pointermove", onMove, { passive: true });
+    sec.addEventListener("pointerdown", onMove, { passive: true });
+    sec.addEventListener("pointerleave", onLeave);
+    sec.addEventListener("pointercancel", onLeave);
     const io = new IntersectionObserver(([e]) => (visible = e.isIntersecting));
     io.observe(sec);
     addEventListener("resize", resize);
@@ -200,7 +208,8 @@ export function FlowField() {
       raf = requestAnimationFrame(frame);
       const dt = lastT ? Math.min(time - lastT, 1000) : 16.7;
       lastT = time;
-      if (!visible) return;
+      // nothing to draw while off screen or under the preloader curtain
+      if (!visible || document.documentElement.classList.contains("lab-loading")) return;
       const r = sec.getBoundingClientRect();
       const sp = clamp01(-r.top / (r.height - innerHeight));
       // each state holds for a while; the glide happens in the last 60% of its scroll slot
@@ -208,9 +217,30 @@ export function FlowField() {
       const k0 = Math.floor(target);
       const stage = Math.min(S - 1, k0 + sm(0.3, 1, target - k0));
       p += (stage - p) * Math.min(1, dt * (reduce ? 1 : 0.0022));
-      mcx += (tmx - mcx) * Math.min(1, dt * 0.003);
-      mcy += (tmy - mcy) * Math.min(1, dt * 0.003);
       const t = reduce ? 0 : time;
+
+      // push: when the pointer is over the shape, the whole shape wants to be a little further away
+      const R = proj.s * 1.15, formed = clamp01(p);
+      let gx = 0, gy = 0, gr = 0;
+      if (!reduce && formed > 0.3) {
+        const dx = proj.cx + ox - mx, dy = proj.cy + oy - my, d = Math.hypot(dx, dy);
+        if (d < R) {
+          const push = (1 - d / R) ** 0.8 * formed;
+          const max = proj.s * 0.22; // a small gesture: at most ~a fifth of the shape's size
+          gx = (dx / (d || 1)) * max * push;
+          gy = (dy / (d || 1)) * max * push;
+          gr = (dx / (d || 1)) * 0.07 * push; // tips away from the side it was touched
+        }
+      }
+      // soft, slightly under-damped spring: it gives way, then floats back
+      const k1 = Math.min(1, dt / 16.7);
+      vx = (vx + (gx - ox) * 0.009 * k1) * (1 - 0.11 * k1);
+      vy = (vy + (gy - oy) * 0.009 * k1) * (1 - 0.11 * k1);
+      vr = (vr + (gr - rot) * 0.009 * k1) * (1 - 0.11 * k1);
+      ox += vx * k1;
+      oy += vy * k1;
+      rot += vr * k1;
+      const cr = Math.cos(rot), sr = Math.sin(rot);
 
       // the ball turns slowly about a tilted axis
       const a = t * 0.00018, ca = Math.cos(a), sa = Math.sin(a), tl = 0.35, ct = Math.cos(tl), st = Math.sin(tl);
@@ -228,7 +258,8 @@ export function FlowField() {
       ctx.clearRect(0, 0, W, H);
       ctx.globalCompositeOperation = "lighter";
       const k = Math.min(S - 2, Math.floor(p)), local = p - k;
-      let cur = -1;
+      // 4 colours x 4 brightness levels: 16 batched paths instead of 7000 separate fills
+      const paths = Array.from({ length: 16 }, () => new Path2D());
       for (let i = 0; i < count; i++) {
         const sg = stg[i];
         const f = halo[i] ? 0 : sm(sg, sg + 0.75, local);
@@ -239,18 +270,25 @@ export function FlowField() {
         const loose = halo[i] ? 1 : 1 - clamp01(p);
         const wob = t * spd[i] + ph[i];
         const amp = 3 + 12 * loose;
-        const par = rad[i] / 2.6;
-        x += Math.cos(wob) * amp + mcx * 16 * par;
-        y += Math.sin(wob * 1.27 + ph[i]) * amp + mcy * 11 * par;
-        const ci = f < 0.5 ? tc[ka][i] : tc[kb][i];
-        if (ci !== cur) {
-          cur = ci;
-          ctx.fillStyle = COLORS[ci];
+        x += Math.cos(wob) * amp;
+        y += Math.sin(wob * 1.27 + ph[i]) * amp;
+        if (!halo[i]) {
+          // move with the pushed shape: tilt about its centre, then shift (bigger dots slightly more)
+          const rx = x - proj.cx, ry = y - proj.cy, dep = 0.85 + 0.3 * (rad[i] / 2.1);
+          x = proj.cx + rx * cr - ry * sr + ox * dep;
+          y = proj.cy + rx * sr + ry * cr + oy * dep;
         }
-        ctx.globalAlpha = (0.55 + 0.35 * Math.sin(t * tws[i] + ph[i] * 13.7)) * (halo[i] ? 0.6 : 1);
-        ctx.beginPath();
-        ctx.arc(x, y, rad[i], 0, TAU);
-        ctx.fill();
+        const ci = f < 0.5 ? tc[ka][i] : tc[kb][i];
+        const tw = 0.5 + 0.5 * Math.sin(t * tws[i] + ph[i] * 13.7);
+        const lv = halo[i] ? 0 : Math.min(3, Math.floor(tw * 4));
+        const path = paths[ci * 4 + lv];
+        path.moveTo(x + rad[i], y);
+        path.arc(x, y, rad[i], 0, TAU);
+      }
+      for (let b = 0; b < 16; b++) {
+        ctx.fillStyle = COLORS[b >> 2];
+        ctx.globalAlpha = 0.34 + (b & 3) * 0.16;
+        ctx.fill(paths[b]);
       }
       ctx.globalAlpha = 1;
       ctx.globalCompositeOperation = "source-over";
@@ -277,7 +315,10 @@ export function FlowField() {
       cancelAnimationFrame(raf);
       io.disconnect();
       removeEventListener("resize", resize);
-      removeEventListener("pointermove", onMove);
+      sec.removeEventListener("pointermove", onMove);
+      sec.removeEventListener("pointerdown", onMove);
+      sec.removeEventListener("pointerleave", onLeave);
+      sec.removeEventListener("pointercancel", onLeave);
     };
   }, []);
 
