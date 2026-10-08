@@ -82,12 +82,12 @@ export function racket(n: number): Cloud {
   const r = rng(2);
   const b = new Builder(n);
   const cy = 0.42, a = 0.42, e = 0.54;
-  const frame = n * 0.3, strings = n * 0.34, throat = n * 0.14;
+  const frame = n * 0.44, strings = n * 0.2, throat = n * 0.13;
   for (let i = 0; i < frame; i++) {
     const t = r() * Math.PI * 2, rr = 1 + (r() - 0.5) * 0.07;
     b.push(Math.cos(t) * a * rr, cy + Math.sin(t) * e * rr, (r() - 0.5) * 0.06, i % 9 === 0 ? PAL.clay : PAL.paper);
   }
-  const mains = 14, crosses = 17;
+  const mains = 8, crosses = 10;
   for (let i = 0; i < strings; i++) {
     if (r() < 0.47) {
       const x = -a + ((Math.floor(r() * mains) + 0.5) / mains) * 2 * a;
@@ -161,7 +161,7 @@ export function court(n: number): Cloud {
   ];
   const lens = lines.map(([x0, z0, x1, z1]) => Math.hypot(x1 - x0, z1 - z0));
   const tot = lens.reduce((s, v) => s + v, 0);
-  const nl = n * 0.5;
+  const nl = n * 0.64;
   for (let i = 0; i < nl; i++) {
     let u = r() * tot, k = 0;
     while (u > lens[k] && k < lens.length - 1) u -= lens[k++];
