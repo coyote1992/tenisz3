@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
 import { DotField, type DotPlace, type DotShape } from "@/components/DotField";
 import "./space.css";
 
 /**
- * The homepage's background: a dot field fixed behind the whole page, after thedent.ai. The content floats over it
+ * The site's background: a dot field fixed behind the whole page, after thedent.ai. The content floats over it
  * "in space", and as you scroll past certain sections the dots slowly reshape for each one.
  * Each anchor section adds one step; a step ramps in over about one screen of scrolling,
  * starting just before the section enters, so the shape has formed as the section arrives.
@@ -38,20 +37,18 @@ const LOOK = { alpha: 0.62, halo: 0.1, parallax: 0.25, spin: 0.0004 };
 
 const clamp01 = (x: number) => (x < 0 ? 0 : x > 1 ? 1 : x);
 
-/**
- * html.space switches the page to the dark "space" look (space.css). On a first load of the
- * homepage the root layout's head script sets it before paint; this covers client navigation.
- */
-export function SpaceField() {
-  const steps = STEPS, look = LOOK;
+const QUIET: Step[] = [{ anchor: "body", shape: "ball", wide: at(0.5, 0.5, 0.2), narrow: phone }];
 
-  useEffect(() => {
-    document.documentElement.classList.add("space");
-    return () => document.documentElement.classList.remove("space");
-  }, []);
+/**
+ * The site's background (html.space, set in the root layout; see space.css). On the homepage the
+ * dots form the shapes above as you scroll; with `quiet` (every other page) they stay a starfield.
+ */
+export function SpaceField({ quiet = false }: { quiet?: boolean }) {
+  const steps = quiet ? QUIET : STEPS, look = LOOK;
 
   // sum of per-section ramps: 0 = loose starfield, 1 = first shape, ...
   const stage = () => {
+    if (quiet) return 0;
     const vh = innerHeight;
     let s = 0;
     for (const st of steps) {
@@ -70,7 +67,8 @@ export function SpaceField() {
       places={steps.map((s) => ({ wide: s.wide, narrow: s.narrow, alpha: s.alpha }))}
       ballSpin={look.spin}
       stage={stage}
-      alpha={look.alpha}
+      alpha={quiet ? 0.5 : look.alpha}
+      count={quiet ? [2400, 1100] : undefined}
       halo={look.halo}
       parallax={look.parallax}
       className="space-field"

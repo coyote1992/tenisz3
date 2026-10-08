@@ -167,3 +167,37 @@ html.space .footer {
     padding-right: 30vw;
   }
 }
+
+/* links and small controls that use the light theme's dark green */
+html.space main :is(.link-arrow, .text-link) {
+  color: var(--lime);
+}
+html.space main .faq details[open] summary .plus {
+  background: var(--lime);
+  border-color: var(--lime);
+  color: var(--forest-deep);
+}
+html.space main .faq summary:hover .plus {
+  border-color: var(--lime);
+}
+
+/* the open phone menu */
+html.space .header--open,
+html.space .mobile-menu {
+  --ink: #f2eee4;
+  --ink-2: rgba(242, 238, 228, 0.8);
+  --ink-3: rgba(242, 238, 228, 0.58);
+  --line: rgba(245, 240, 230, 0.14);
+  --line-strong: rgba(245, 240, 230, 0.3);
+  background: #0a1a10;
+  color: var(--paper);
+}
+html.space .header--open .btn--ink,
+html.space .mobile-menu .btn--ink {
+  --btn-bg: var(--lime);
+  --btn-fg: var(--forest-deep);
+}
+html.space .mobile-menu .btn--ghost {
+  --btn-fg: var(--paper);
+  border-color: rgba(245, 240, 230, 0.3);
+}

@@ -6,6 +6,7 @@ import "./globals.css";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { ActionBar, RevealObserver } from "@/components/Motion";
+import { SpaceBackground } from "@/components/space/SpaceBackground";
 import { site } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -28,7 +29,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0f2416",
+  themeColor: "#0a1a10",
   width: "device-width",
   initialScale: 1,
 };
@@ -62,17 +63,13 @@ const jsonLd = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="hu" suppressHydrationWarning>
+    <html lang="hu" className="space" suppressHydrationWarning>
       <head>
-        <script
-          dangerouslySetInnerHTML={{
-            // "space": the homepage's dark dot-field look, set before first paint (no light flash)
-            __html: "document.documentElement.classList.add('js');if(location.pathname==='/')document.documentElement.classList.add('space')",
-          }}
-        />
+        <script dangerouslySetInnerHTML={{ __html: "document.documentElement.classList.add('js')" }} />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       </head>
       <body>
+        <SpaceBackground />
         <a href="#tartalom" className="skip-link">
           Ugrás a tartalomhoz
         </a>
