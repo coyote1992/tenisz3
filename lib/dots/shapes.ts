@@ -148,7 +148,8 @@ export function player(n: number): Cloud {
   return sampleCanvas(cv, n, 0.0058, 3, 0.12);
 }
 
-export function court(n: number): Cloud {
+/** The court in perspective: white lines and net; `field` adds the sparse clay surface. */
+export function court(n: number, field = true): Cloud {
   const r = rng(4);
   const b = new Builder(n);
   // real proportions: 23.77 x 10.97 (doubles), singles 8.23, service line 6.40 from net
@@ -161,7 +162,7 @@ export function court(n: number): Cloud {
   ];
   const lens = lines.map(([x0, z0, x1, z1]) => Math.hypot(x1 - x0, z1 - z0));
   const tot = lens.reduce((s, v) => s + v, 0);
-  const nl = n * 0.64;
+  const nl = n * (field ? 0.64 : 0.74);
   for (let i = 0; i < nl; i++) {
     let u = r() * tot, k = 0;
     while (u > lens[k] && k < lens.length - 1) u -= lens[k++];
@@ -170,7 +171,7 @@ export function court(n: number): Cloud {
     b.push(x0 + (x1 - x0) * t + (r() - 0.5) * 0.012, 0, z0 + (z1 - z0) * t + (r() - 0.5) * 0.012, PAL.paper);
   }
   // net: a mesh plane at z = 0, height 0.914 m in the middle, 1.07 m at the posts
-  const nn = n * 0.2, ext = hw + 0.914 * L;
+  const nn = n * (field ? 0.2 : 0.23), ext = hw + 0.914 * L;
   for (let i = 0; i < nn; i++) {
     const x = (r() * 2 - 1) * ext;
     const top = (0.914 + (1.07 - 0.914) * (Math.abs(x) / ext) ** 2) * L * 1.6;
@@ -184,7 +185,7 @@ export function court(n: number): Cloud {
     b.push(x, (0.914 + (1.07 - 0.914) * (Math.abs(x) / ext) ** 2) * L * 1.6, 0, PAL.paper);
   }
   // the clay itself, sparse
-  while (b.i < n) {
+  while (field && b.i < n) {
     const x = (r() * 2 - 1) * (hw + 0.35), z = (r() * 2 - 1) * (hl + 0.4);
     b.push(x, -0.005, z, r() < 0.5 ? PAL.clay : PAL.claySoft);
   }

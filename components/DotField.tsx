@@ -14,7 +14,7 @@ import { court, player, racket, word, type Cloud } from "@/lib/dots/shapes";
  * and `stage()` can keep counting up (1, 2, 3, ...) for an endless cycle.
  */
 
-export type DotShape = "ball" | "racket" | "player" | "court" | { word: string };
+export type DotShape = "ball" | "racket" | "player" | "court" | "courtLines" | { word: string };
 /**
  * Where the shapes sit: centre x and y as fractions of the box (or `py` px from its top),
  * scale = min(width·sw, height·sh).
@@ -28,7 +28,9 @@ type Props = {
   wide?: DotPlace;
   narrow?: DotPlace;
   /** Optional placement per shape (same order as `shapes`); falls back to wide / narrow. */
-  places?: { wide: DotPlace; narrow: DotPlace }[];
+  places?: { wide: DotPlace; narrow: DotPlace; alpha?: number }[];
+  /** Ball rotation speed, radians per millisecond. */
+  ballSpin?: number;
   count?: [number, number];
   loop?: boolean;
   /** Four colours. "add" glows on dark pages; "normal" is for light pages. */
@@ -66,7 +68,8 @@ const VERT = /* glsl */ `
   attribute float aCol;                // colour index per state, packed base 4
   attribute vec4 aDot;                 // radius px, phase, drift speed, twinkle speed
   attribute vec2 aStag;                // morph stagger, halo flag
-  uniform float uMorph, uTime, uDpr, uRepelR, uRepelA, uLast, uAlpha, uScroll, uParallax;
+  uniform float uMorph, uTime, uDpr, uRepelR, uRepelA, uLast, uAlpha, uScroll, uParallax, uSpin;
+  uniform float uStateA[${MAX_STATES}]; // per state opacity
   uniform vec3 uPlace[${MAX_STATES}];  // per state: centre x, centre y, scale (px per unit)
   uniform float uKind[${MAX_STATES}];  // 0 loose, 1 ball, 2 static shape
   uniform float uSlot[${MAX_STATES}];  // which aT slot a static state uses
@@ -77,7 +80,7 @@ const VERT = /* glsl */ `
   vec2 project(vec3 v, vec3 pl){ float k = 4.2 / (4.2 - v.z); return vec2(pl.x + v.x * pl.z * k, pl.y - v.y * pl.z * k); }
   vec2 ballPos(vec3 pl){
     if (aBallType > 1.5) return project(vec3(position.xy, 0.), pl);
-    float a = uTime * .00018, ca = cos(a), sa = sin(a), ct = cos(.35), st = sin(.35);
+    float a = uTime * uSpin, ca = cos(a), sa = sin(a), ct = cos(.35), st = sin(.35);
     float x = position.x * ca + position.z * sa, z = -position.x * sa + position.z * ca;
     return project(vec3(x, position.y * ct - z * st, position.y * st + z * ct), pl);
   }
@@ -118,7 +121,7 @@ const VERT = /* glsl */ `
     gl_PointSize = (aDot.x * 2. + 1.) * uDpr;
     vCol = uPal[int(f < .5 ? colIndex(ka) : colIndex(kb))];
     float tw = .5 + .5 * sin(uTime * aDot.w + aDot.y * 13.7);
-    vA = (halo > .5 ? .34 : .34 + .48 * tw) * uAlpha;
+    vA = (halo > .5 ? .34 : .34 + .48 * tw) * uAlpha * (halo > .5 ? 1. : mix(uStateA[ka], uStateA[kb], f));
   }
 `;
 
@@ -143,6 +146,7 @@ export function DotField({
   wide = LAB_WIDE,
   narrow = LAB_NARROW,
   places,
+  ballSpin = 0.00018,
   count = [7000, 3000],
   loop = false,
   palette = COLORS,
@@ -156,11 +160,11 @@ export function DotField({
   // latest callbacks without re-creating the GL scene
   const cb = useRef({ stage, onFrame });
   cb.current = { stage, onFrame };
-  const cfg = useRef({ shapes, wide, narrow, places, count, loop, palette, blend, alpha, halo, parallax });
+  const cfg = useRef({ shapes, wide, narrow, places, ballSpin, count, loop, palette, blend, alpha, halo, parallax });
 
   useEffect(() => {
     const el = holder.current!;
-    const { shapes, wide, narrow, places, count: counts, loop, palette, blend, alpha, halo, parallax } = cfg.current;
+    const { shapes, wide, narrow, places, ballSpin, count: counts, loop, palette, blend, alpha, halo, parallax } = cfg.current;
     const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
     const S = Math.min(MAX_STATES, shapes.length + 1);
     let disposed = false, raf = 0, visible = false;
@@ -184,6 +188,8 @@ export function DotField({
       uAlpha: { value: alpha },
       uScroll: { value: 0 },
       uParallax: { value: parallax },
+      uSpin: { value: ballSpin },
+      uStateA: { value: Array.from({ length: MAX_STATES }, (_, k) => (k === 0 ? 1 : places?.[k - 1]?.alpha ?? 1)) },
       uRepelR: { value: 70 },
       uRepelA: { value: 0 },
       uPal: { value: palette.map(hexRgb) },
@@ -238,7 +244,8 @@ export function DotField({
           stateCloud.push("ball");
           continue;
         }
-        const c = sh === "racket" ? racket(n) : sh === "player" ? player(n) : sh === "court" ? court(n) : await word(n, sh.word);
+        const c =
+          sh === "racket" ? racket(n) : sh === "player" ? player(n) : sh === "court" ? court(n) : sh === "courtLines" ? court(n, false) : await word(n, sh.word);
         clouds.push(c);
         stateCloud.push(c);
       }
