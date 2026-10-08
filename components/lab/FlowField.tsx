@@ -1,16 +1,17 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { court, player, racket, word, type Cloud } from "@/lib/lab/shapes";
+import * as THREE from "three";
+import { court, player, racket, word } from "@/lib/lab/shapes";
 import { LabTag } from "./LabTag";
 
 /**
  * 86 · Spin flow field, after thedent.ai's ambient background.
- * A couple of thousand crisp dots on a 2D canvas. They start as a loose starfield and, as you
- * scroll, glide (each with its own small delay) into a ball, a racket, a serving player, the
- * court and the club's name. Morphs are eased slowly; every dot keeps a slow drift and twinkle.
- * The cursor pushes the whole shape, not single dots: it drifts and tilts away from the pointer
- * (bigger dots a touch more, for depth) and floats back to its place when left alone.
+ * 7 000 crisp dots (3 000 on phones), drawn with WebGL so the GPU does the per-dot work.
+ * They start as a loose starfield and, as you scroll, glide (each with its own small delay)
+ * into a ball, a racket, a serving player, the court and the club's name. Morphs are eased
+ * slowly; every dot keeps a slow drift and twinkle. Dots near the cursor slide out of its way
+ * inside a small circle, and drift back when it moves on.
  */
 
 const STEPS = [
@@ -43,7 +44,7 @@ const STEPS = [
 
 // lime, paper, clay, felt: weights 45 / 30 / 15 / 10 % for the loose state
 const COLORS = ["#e6e28c", "#f5f0e6", "#e5875a", "#c9d34f"];
-const PI = Math.PI, TAU = PI * 2;
+const TAU = Math.PI * 2;
 const rand = (i: number, s: number) => {
   const x = Math.sin(i * 127.1 + s * 311.7) * 43758.5453;
   return x - Math.floor(x);
@@ -61,137 +62,190 @@ function paletteIndex(r: number, g: number, b: number) {
   return 1; // paper: frame, lines, net, shirt
 }
 
+const VERT = /* glsl */ `
+  attribute vec2 aNoise;               // loose state, 0..1 of the screen
+  attribute float aBallType;           // 0 surface, 1 seam, 2 silhouette (does not turn)
+  attribute vec3 aRacket; attribute vec3 aPlayer; attribute vec3 aCourt; attribute vec3 aWord;
+  attribute float aCol;                // colour index per state, packed base 4
+  attribute vec4 aDot;                 // radius px, phase, drift speed, twinkle speed
+  attribute vec2 aStag;                // morph stagger, halo flag
+  uniform float uMorph, uTime, uDpr, uRepelR, uRepelA;
+  uniform vec2 uRes, uMouse;
+  uniform vec3 uProj;                  // centre x, centre y, scale (px per unit)
+  uniform vec3 uPal[4];
+  varying vec3 vCol; varying float vA;
+
+  vec2 project(vec3 v){ float k = 4.2 / (4.2 - v.z); return vec2(uProj.x + v.x * uProj.z * k, uProj.y - v.y * uProj.z * k); }
+  vec2 ballPos(){
+    if (aBallType > 1.5) return project(vec3(position.xy, 0.));
+    float a = uTime * .00018, ca = cos(a), sa = sin(a), ct = cos(.35), st = sin(.35);
+    float x = position.x * ca + position.z * sa, z = -position.x * sa + position.z * ca;
+    return project(vec3(x, position.y * ct - z * st, position.y * st + z * ct));
+  }
+  vec2 statePos(int k){
+    if (k == 0) return aNoise * uRes;
+    if (k == 1) return ballPos();
+    if (k == 2) return project(aRacket);
+    if (k == 3) return project(aPlayer);
+    if (k == 4) return project(aCourt);
+    return project(aWord);
+  }
+  float colIndex(int k){
+    float b = k == 0 ? 1. : k == 1 ? 4. : k == 2 ? 16. : k == 3 ? 64. : k == 4 ? 256. : 1024.;
+    return mod(floor((aCol + .5) / b), 4.);
+  }
+  void main(){
+    float halo = aStag.y;
+    int k = int(min(4., floor(uMorph)));
+    float local = uMorph - float(k);
+    float f = halo > .5 ? 0. : smoothstep(aStag.x, aStag.x + .75, local);
+    int ka = halo > .5 ? 0 : k, kb = halo > .5 ? 0 : k + 1;
+    vec2 pos = mix(statePos(ka), statePos(kb), f);
+    // loose dots wander, shaped dots only breathe
+    float loose = halo > .5 ? 1. : 1. - clamp(uMorph, 0., 1.);
+    float wob = uTime * aDot.z + aDot.y, amp = 3. + 12. * loose;
+    pos += vec2(cos(wob), sin(wob * 1.27 + aDot.y)) * amp;
+    // the cursor clears a small round space: dots slide out of the way and drift back
+    vec2 d = pos - uMouse;
+    float r2 = dot(d, d);
+    pos += d * inversesqrt(r2 + 1.) * uRepelA * exp(-r2 / (uRepelR * uRepelR));
+    vec2 clip = pos / uRes * 2. - 1.;
+    gl_Position = vec4(clip.x, -clip.y, 0., 1.);
+    gl_PointSize = (aDot.x * 2. + 1.) * uDpr;
+    vCol = uPal[int(f < .5 ? colIndex(ka) : colIndex(kb))];
+    float tw = .5 + .5 * sin(uTime * aDot.w + aDot.y * 13.7);
+    vA = halo > .5 ? .34 : .34 + .48 * tw;
+  }
+`;
+
+const FRAG = /* glsl */ `
+  varying vec3 vCol; varying float vA;
+  void main(){
+    float d = length(gl_PointCoord - .5) * 2.;
+    float a = vA * (1. - smoothstep(.6, 1., d));
+    if (a < .01) discard;
+    gl_FragColor = vec4(vCol * a, a);
+  }
+`;
+
+const hexRgb = (h: string) => new THREE.Vector3(parseInt(h.slice(1, 3), 16) / 255, parseInt(h.slice(3, 5), 16) / 255, parseInt(h.slice(5, 7), 16) / 255);
+
 export function FlowField() {
   const wrap = useRef<HTMLElement>(null);
-  const cv = useRef<HTMLCanvasElement>(null);
+  const holder = useRef<HTMLDivElement>(null);
   const caps = useRef<(HTMLDivElement | null)[]>([]);
   const intro = useRef<HTMLDivElement>(null);
   const dots = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const sec = wrap.current!, c = cv.current!, ctx = c.getContext("2d")!;
+    const sec = wrap.current!, el = holder.current!;
     const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
-    let disposed = false, raf = 0, visible = true;
-    let W = 0, H = 0, count = 0;
     const S = 6; // states: loose, ball, racket, player, court, word
+    let disposed = false, raf = 0, visible = true;
 
-    // per particle statics
-    let rad = new Float32Array(0), ph = new Float32Array(0), spd = new Float32Array(0), tws = new Float32Array(0), stg = new Float32Array(0);
-    let halo = new Uint8Array(0), base = new Uint8Array(0);
-    // targets per state, CSS px; colour index per state
-    let tx: Float32Array[] = [], ty: Float32Array[] = [], tc: Uint8Array[] = [];
-    // the ball is stored in 3D so it can turn slowly
-    let bx = new Float32Array(0), by = new Float32Array(0), bz = new Float32Array(0), bring = new Uint8Array(0);
-    let shapes: Cloud[] | null = null;
-    let proj = { cx: 0, cy: 0, s: 1 };
+    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: false, powerPreference: "high-performance" });
+    renderer.setClearColor(0x000000, 0);
+    el.appendChild(renderer.domElement);
+    const scene = new THREE.Scene();
+    const camera = new THREE.Camera();
+    const uniforms = {
+      uMorph: { value: 0 },
+      uTime: { value: 0 },
+      uDpr: { value: 1 },
+      uRes: { value: new THREE.Vector2(1, 1) },
+      uMouse: { value: new THREE.Vector2(-1e4, -1e4) },
+      uProj: { value: new THREE.Vector3() },
+      uRepelR: { value: 70 },
+      uRepelA: { value: 0 },
+      uPal: { value: COLORS.map(hexRgb) },
+    };
+    const mat = new THREE.ShaderMaterial({
+      vertexShader: VERT,
+      fragmentShader: FRAG,
+      uniforms,
+      transparent: true,
+      depthTest: false,
+      depthWrite: false,
+      // premultiplied additive, like canvas "lighter"
+      blending: THREE.CustomBlending,
+      blendSrc: THREE.OneFactor,
+      blendDst: THREE.OneFactor,
+    });
+    const geo = new THREE.BufferGeometry();
 
     const setup = async () => {
-      const mobile = innerWidth <= 768;
-      count = mobile ? 3000 : 7000;
-      rad = new Float32Array(count);
-      ph = new Float32Array(count);
-      spd = new Float32Array(count);
-      tws = new Float32Array(count);
-      stg = new Float32Array(count);
-      halo = new Uint8Array(count);
-      base = new Uint8Array(count);
+      const count = innerWidth <= 768 ? 3000 : 7000;
+      const noise = new Float32Array(count * 2), ball = new Float32Array(count * 3), btype = new Float32Array(count);
+      const dot = new Float32Array(count * 4), stag = new Float32Array(count * 2), col = new Float32Array(count);
+      const base = new Uint8Array(count);
+      const A = 0.66, B = 0.34, Cz = 2 * Math.sqrt(A * B), R = 0.85;
       for (let i = 0; i < count; i++) {
         const pr = rand(i, 20);
         base[i] = pr < 0.45 ? 0 : pr < 0.75 ? 1 : pr < 0.9 ? 2 : 3;
-        rad[i] = 0.75 + rand(i, 21) * 1.35;
-        ph[i] = rand(i, 22) * TAU;
-        spd[i] = 0.00026 + rand(i, 23) * 0.00016;
-        tws[i] = 0.0007 + rand(i, 24) * 0.0008;
-        stg[i] = rand(i, 8) * 0.25;
-        halo[i] = rand(i, 30) < 0.07 ? 1 : 0; // a sparse starfield never joins a shape
-      }
-      // ball: a rim, the seam and a sprinkle of surface, in 3D
-      bx = new Float32Array(count);
-      by = new Float32Array(count);
-      bz = new Float32Array(count);
-      bring = new Uint8Array(count);
-      const A = 0.66, B = 0.34, Cz = 2 * Math.sqrt(A * B), R = 0.85;
-      for (let i = 0; i < count; i++) {
+        dot.set([0.75 + rand(i, 21) * 1.35, rand(i, 22) * TAU, 0.00026 + rand(i, 23) * 0.00016, 0.0007 + rand(i, 24) * 0.0008], i * 4);
+        stag.set([rand(i, 8) * 0.25, rand(i, 30) < 0.07 ? 1 : 0], i * 2); // 7% stay loose as a starfield
+        noise.set([rand(i, 1), rand(i, 2)], i * 2);
+        // ball: a seam, a silhouette rim and a sprinkle of surface
         const r = rand(i, 40);
         if (r < 0.3) {
-          const t = rand(i, 41) * TAU, w = (rand(i, 42) - 0.5) * 0.03;
-          bx[i] = (A * Math.cos(t) + B * Math.cos(3 * t)) * (R + w);
-          by[i] = (A * Math.sin(t) - B * Math.sin(3 * t)) * (R + w);
-          bz[i] = Cz * Math.sin(2 * t) * (R + w);
-          bring[i] = 1; // seam: paper
+          const t = rand(i, 41) * TAU, w = R + (rand(i, 42) - 0.5) * 0.03;
+          ball.set([(A * Math.cos(t) + B * Math.cos(3 * t)) * w, (A * Math.sin(t) - B * Math.sin(3 * t)) * w, Cz * Math.sin(2 * t) * w], i * 3);
+          btype[i] = 1;
         } else if (r < 0.62) {
           const t = rand(i, 43) * TAU, rr = R * (1 + (rand(i, 44) - 0.5) * 0.04);
-          bx[i] = Math.cos(t) * rr;
-          by[i] = Math.sin(t) * rr;
-          bz[i] = 0;
-          bring[i] = 2; // silhouette, fixed to the screen
+          ball.set([Math.cos(t) * rr, Math.sin(t) * rr, 0], i * 3);
+          btype[i] = 2;
         } else {
           const u = rand(i, 45) * 2 - 1, th = rand(i, 46) * TAU, s = Math.sqrt(1 - u * u);
-          bx[i] = s * Math.cos(th) * R;
-          by[i] = u * R;
-          bz[i] = s * Math.sin(th) * R;
-          bring[i] = 0;
+          ball.set([s * Math.cos(th) * R, u * R, s * Math.sin(th) * R], i * 3);
+          btype[i] = 0;
         }
       }
-      shapes = [racket(count), player(count), court(count), await word(count, "Gellért")];
+      const shapes = [racket(count), player(count), court(count), await word(count, "Gellért")];
       if (disposed) return;
+      // colour per state, packed as base-4 digits: loose, ball, racket, player, court, word
+      for (let i = 0; i < count; i++) {
+        const ballCol = btype[i] === 1 ? 1 : base[i] === 2 ? 3 : base[i] === 1 ? 0 : base[i];
+        let v = base[i] + ballCol * 4, m = 16;
+        for (const sh of shapes) {
+          v += paletteIndex(sh.col[i * 3], sh.col[i * 3 + 1], sh.col[i * 3 + 2]) * m;
+          m *= 4;
+        }
+        col[i] = v;
+      }
+      geo.setAttribute("position", new THREE.BufferAttribute(ball, 3));
+      geo.setAttribute("aBallType", new THREE.BufferAttribute(btype, 1));
+      geo.setAttribute("aNoise", new THREE.BufferAttribute(noise, 2));
+      ["aRacket", "aPlayer", "aCourt", "aWord"].forEach((n, k) => geo.setAttribute(n, new THREE.BufferAttribute(shapes[k].pos, 3)));
+      geo.setAttribute("aCol", new THREE.BufferAttribute(col, 1));
+      geo.setAttribute("aDot", new THREE.BufferAttribute(dot, 4));
+      geo.setAttribute("aStag", new THREE.BufferAttribute(stag, 2));
+      const pts = new THREE.Points(geo, mat);
+      pts.frustumCulled = false;
+      scene.add(pts);
       resize();
       raf = requestAnimationFrame(frame);
     };
 
-    const project = (x: number, y: number, z: number): [number, number] => {
-      const k = 4.2 / (4.2 - z);
-      return [proj.cx + x * proj.s * k, proj.cy - y * proj.s * k];
-    };
-
     const resize = () => {
-      if (!shapes) return;
-      const d = Math.min(devicePixelRatio || 1, innerWidth <= 768 ? 1.5 : 2);
-      W = c.clientWidth;
-      H = c.clientHeight;
-      c.width = Math.round(W * d);
-      c.height = Math.round(H * d);
-      ctx.setTransform(d, 0, 0, d, 0, 0);
+      const W = el.clientWidth, H = el.clientHeight;
+      const d = Math.min(devicePixelRatio || 1, 2);
+      renderer.setPixelRatio(d);
+      renderer.setSize(W, H, false);
+      uniforms.uDpr.value = d;
+      uniforms.uRes.value.set(W, H);
       const wide = W > 900;
-      proj = { cx: wide ? W * 0.66 : W / 2, cy: wide ? H * 0.52 : H * 0.36, s: Math.min(wide ? W * 0.2 : W * 0.36, H * 0.3) };
-      tx = [];
-      ty = [];
-      tc = [];
-      // state 0: loose noise over the whole screen
-      const nx = new Float32Array(count), ny = new Float32Array(count), nc = new Uint8Array(count);
-      for (let i = 0; i < count; i++) {
-        nx[i] = rand(i, 1) * W;
-        ny[i] = rand(i, 2) * H;
-        nc[i] = base[i];
-      }
-      tx.push(nx);
-      ty.push(ny);
-      tc.push(nc);
-      // state 1: the ball is projected every frame; keep a slot
-      tx.push(new Float32Array(count));
-      ty.push(new Float32Array(count));
-      tc.push(new Uint8Array(count).map((_, i) => (bring[i] === 1 ? 1 : base[i] === 2 ? 3 : base[i] === 1 ? 0 : base[i])));
-      for (const sh of shapes) {
-        const X = new Float32Array(count), Y = new Float32Array(count), Cc = new Uint8Array(count);
-        for (let i = 0; i < count; i++) {
-          const [x, y] = project(sh.pos[i * 3], sh.pos[i * 3 + 1], sh.pos[i * 3 + 2]);
-          X[i] = x;
-          Y[i] = y;
-          Cc[i] = paletteIndex(sh.col[i * 3], sh.col[i * 3 + 1], sh.col[i * 3 + 2]);
-        }
-        tx.push(X);
-        ty.push(Y);
-        tc.push(Cc);
-      }
+      uniforms.uProj.value.set(wide ? W * 0.66 : W / 2, wide ? H * 0.52 : H * 0.36, Math.min(wide ? W * 0.2 : W * 0.36, H * 0.3));
+      // the cleared circle scales a little with the screen: ~100 px on a laptop
+      // (the first version was an oval of about 170 x 106 px)
+      uniforms.uRepelR.value = Math.max(56, Math.min(W, H) * 0.11);
     };
 
-    let p = 0, lastT = 0;
-    // the pushed shape: offset and tilt with velocity (a soft spring), pointer in canvas px
-    let ox = 0, oy = 0, vx = 0, vy = 0, rot = 0, vr = 0, mx = -1e4, my = -1e4;
+    let p = 0, lastT = 0, mx = -1e4, my = -1e4, pres = 0;
     const onMove = (e: PointerEvent) => {
-      const rc = c.getBoundingClientRect();
-      mx = e.clientX - rc.left;
-      my = e.clientY - rc.top;
+      const r = el.getBoundingClientRect();
+      mx = e.clientX - r.left;
+      my = e.clientY - r.top;
     };
     const onLeave = () => {
       mx = my = -1e4;
@@ -217,89 +271,26 @@ export function FlowField() {
       const k0 = Math.floor(target);
       const stage = Math.min(S - 1, k0 + sm(0.3, 1, target - k0));
       p += (stage - p) * Math.min(1, dt * (reduce ? 1 : 0.0022));
-      const t = reduce ? 0 : time;
-
-      // push: when the pointer is over the shape, the whole shape wants to be a little further away
-      const R = proj.s * 1.15, formed = clamp01(p);
-      let gx = 0, gy = 0, gr = 0;
-      if (!reduce && formed > 0.3) {
-        const dx = proj.cx + ox - mx, dy = proj.cy + oy - my, d = Math.hypot(dx, dy);
-        if (d < R) {
-          const push = (1 - d / R) ** 0.8 * formed;
-          const max = proj.s * 0.22; // a small gesture: at most ~a fifth of the shape's size
-          gx = (dx / (d || 1)) * max * push;
-          gy = (dy / (d || 1)) * max * push;
-          gr = (dx / (d || 1)) * 0.07 * push; // tips away from the side it was touched
-        }
+      // the cleared circle follows the pointer with a little lag; when the pointer leaves,
+      // it fades out where it was, so the dots drift back instead of snapping
+      const m = uniforms.uMouse.value, here = mx > -1e3;
+      if (here) {
+        if (pres < 0.01) m.set(mx, my);
+        else m.lerp(new THREE.Vector2(mx, my), Math.min(1, dt * 0.012));
       }
-      // soft, slightly under-damped spring: it gives way, then floats back
-      const k1 = Math.min(1, dt / 16.7);
-      vx = (vx + (gx - ox) * 0.009 * k1) * (1 - 0.11 * k1);
-      vy = (vy + (gy - oy) * 0.009 * k1) * (1 - 0.11 * k1);
-      vr = (vr + (gr - rot) * 0.009 * k1) * (1 - 0.11 * k1);
-      ox += vx * k1;
-      oy += vy * k1;
-      rot += vr * k1;
-      const cr = Math.cos(rot), sr = Math.sin(rot);
-
-      // the ball turns slowly about a tilted axis
-      const a = t * 0.00018, ca = Math.cos(a), sa = Math.sin(a), tl = 0.35, ct = Math.cos(tl), st = Math.sin(tl);
-      const BX = tx[1], BY = ty[1];
-      for (let i = 0; i < count; i++) {
-        if (bring[i] === 2) {
-          [BX[i], BY[i]] = project(bx[i], by[i], 0);
-          continue;
-        }
-        const x = bx[i] * ca + bz[i] * sa, z = -bx[i] * sa + bz[i] * ca;
-        const y = by[i] * ct - z * st, z2 = by[i] * st + z * ct;
-        [BX[i], BY[i]] = project(x, y, z2);
-      }
-
-      ctx.clearRect(0, 0, W, H);
-      ctx.globalCompositeOperation = "lighter";
-      const k = Math.min(S - 2, Math.floor(p)), local = p - k;
-      // 4 colours x 4 brightness levels: 16 batched paths instead of 7000 separate fills
-      const paths = Array.from({ length: 16 }, () => new Path2D());
-      for (let i = 0; i < count; i++) {
-        const sg = stg[i];
-        const f = halo[i] ? 0 : sm(sg, sg + 0.75, local);
-        const ka = halo[i] ? 0 : k, kb = halo[i] ? 0 : k + 1;
-        let x = tx[ka][i] + (tx[kb][i] - tx[ka][i]) * f;
-        let y = ty[ka][i] + (ty[kb][i] - ty[ka][i]) * f;
-        // loose dots wander more; shaped dots only breathe
-        const loose = halo[i] ? 1 : 1 - clamp01(p);
-        const wob = t * spd[i] + ph[i];
-        const amp = 3 + 12 * loose;
-        x += Math.cos(wob) * amp;
-        y += Math.sin(wob * 1.27 + ph[i]) * amp;
-        if (!halo[i]) {
-          // move with the pushed shape: tilt about its centre, then shift (bigger dots slightly more)
-          const rx = x - proj.cx, ry = y - proj.cy, dep = 0.85 + 0.3 * (rad[i] / 2.1);
-          x = proj.cx + rx * cr - ry * sr + ox * dep;
-          y = proj.cy + rx * sr + ry * cr + oy * dep;
-        }
-        const ci = f < 0.5 ? tc[ka][i] : tc[kb][i];
-        const tw = 0.5 + 0.5 * Math.sin(t * tws[i] + ph[i] * 13.7);
-        const lv = halo[i] ? 0 : Math.min(3, Math.floor(tw * 4));
-        const path = paths[ci * 4 + lv];
-        path.moveTo(x + rad[i], y);
-        path.arc(x, y, rad[i], 0, TAU);
-      }
-      for (let b = 0; b < 16; b++) {
-        ctx.fillStyle = COLORS[b >> 2];
-        ctx.globalAlpha = 0.34 + (b & 3) * 0.16;
-        ctx.fill(paths[b]);
-      }
-      ctx.globalAlpha = 1;
-      ctx.globalCompositeOperation = "source-over";
+      pres += ((here ? 1 : 0) - pres) * Math.min(1, dt * 0.004);
+      uniforms.uRepelA.value = reduce ? 0 : 42 * pres;
+      uniforms.uMorph.value = p;
+      uniforms.uTime.value = reduce ? 0 : time;
+      renderer.render(scene, camera);
 
       // captions follow the settled state
       const idx = Math.round(p);
-      caps.current.forEach((el, i) => {
-        if (!el) return;
+      caps.current.forEach((c, i) => {
+        if (!c) return;
         const on = i + 1 === idx;
-        el.style.opacity = on ? "1" : "0";
-        el.style.transform = `translateY(${on ? 0 : i + 1 < idx ? -16 : 16}px)`;
+        c.style.opacity = on ? "1" : "0";
+        c.style.transform = `translateY(${on ? 0 : i + 1 < idx ? -16 : 16}px)`;
       });
       if (intro.current) {
         const v = clamp01(1 - p * 1.6);
@@ -319,13 +310,17 @@ export function FlowField() {
       sec.removeEventListener("pointerdown", onMove);
       sec.removeEventListener("pointerleave", onLeave);
       sec.removeEventListener("pointercancel", onLeave);
+      geo.dispose();
+      mat.dispose();
+      renderer.dispose();
+      renderer.domElement.remove();
     };
   }, []);
 
   return (
     <section ref={wrap} className="lab-flow" aria-label="Bevezető">
       <div className="lab-flow__stage">
-        <canvas ref={cv} className="lab-flow__canvas" aria-hidden />
+        <div ref={holder} className="lab-flow__canvas" aria-hidden />
         <div className="container lab-flow__copy">
           <div ref={intro} className="lab-flow__intro">
             <p className="eyebrow eyebrow--light">Labor · tizenkét ötlet élesben</p>
