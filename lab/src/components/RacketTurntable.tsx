@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { site } from "@/lib/site";
 import { LabTag } from "./LabTag";
-import { frameUrls } from "@/lib/lab/assets";
+import { frameUrls } from "../lib/assets";
 
 /**
  * 01 · Racket turntable.

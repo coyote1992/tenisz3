@@ -1,7 +1,7 @@
 """Depth maps for the living photograph (idea 21).
 Model: Depth Anything V2 small (onnx-community/depth-anything-v2-small, onnx/model.onnx).
 Usage: python depth.py hero-serve stadium-court   (reads public/img/<name>.jpg, writes <name>-depth.png)
-The site uses these after a 7 px max filter and 3 px blur, saved as public/lab/<name>-depth.webp.
+The site uses these after a 7 px max filter and 3 px blur, saved as lab/dist/assets/<name>-depth.webp.
 """
 import onnxruntime as ort, numpy as np, sys
 from PIL import Image

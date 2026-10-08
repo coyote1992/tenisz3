@@ -2980,27 +2980,3 @@ ol {
   height: 100%;
   display: block;
 }
-
-/* ---------- Preview label on /minta pages ---------- */
-
-.minta-badge {
-  position: fixed;
-  left: 50%;
-  bottom: 16px;
-  z-index: 70;
-  translate: -50% 0;
-  padding: 8px 14px;
-  border-radius: 999px;
-  background: var(--clay);
-  color: var(--paper);
-  font-size: 0.8rem;
-  font-weight: 600;
-  box-shadow: 0 10px 24px -10px rgba(0, 0, 0, 0.5);
-  pointer-events: none;
-  white-space: nowrap;
-}
-@media (max-width: 900px) {
-  .minta-badge {
-    bottom: 78px;
-  }
-}

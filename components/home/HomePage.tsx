@@ -6,7 +6,7 @@ import { MapEmbed } from "@/components/MapEmbed";
 import { ArrowRight, ArrowUpRight, Check, Phone } from "@/components/Icons";
 import { history, site, tennisPrices } from "@/lib/site";
 
-/** The homepage. The /minta preview pages render it too, restyled over a dot-field background. */
+/** The homepage content; app/page.tsx sets it over the dot-field background (SpaceField). */
 export function HomePage() {
   return (
     <>

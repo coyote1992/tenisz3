@@ -1,7 +1,6 @@
 /* ==========================================================================
-   "Space" preview themes: the page floats over a fixed dot field.
-   html.space-dark (night, depth): dark sky, light text, glass cards.
-   html.space-light (dust): the paper page with dark clay-dust dots.
+   Homepage "space" look: the page floats over a fixed dot field (SpaceField).
+   html.space: dark sky, light text, glass cards.
    ========================================================================== */
 
 .space-field {
@@ -21,16 +20,13 @@ html.space body {
 
 /* ---------------------------------------------------------------- dark */
 
-html.space-dark {
+html.space {
   background: radial-gradient(120% 80% at 50% 0%, #11281b 0%, #0a1a10 55%, #07130c 100%) fixed;
   color-scheme: dark;
 }
-html.space-depth {
-  background: radial-gradient(90% 70% at 50% 45%, #0f2418 0%, #07120b 70%, #050d08 100%) fixed;
-}
 
-html.space-dark main,
-html.space-dark .footer {
+html.space main,
+html.space .footer {
   --ink: #f2eee4;
   --ink-2: rgba(242, 238, 228, 0.8);
   --ink-3: rgba(242, 238, 228, 0.58);
@@ -42,73 +38,67 @@ html.space-dark .footer {
   color: var(--ink);
 }
 
-html.space-dark :is(.section, .section--paper2, .section--dark, .section--forest, .hero, .heritage, .footer) {
+html.space :is(.section, .section--paper2, .section--dark, .section--forest, .hero, .heritage, .footer) {
   background: transparent;
 }
-html.space-dark main :is(.h1, .h2, .h3) em {
+html.space main :is(.h1, .h2, .h3) em {
   color: var(--clay-soft);
 }
-html.space-dark main .eyebrow {
+html.space main .eyebrow {
   color: var(--lime);
 }
-html.space-dark main .fact__num {
+html.space main .fact__num {
   color: var(--paper);
 }
-html.space-dark main .tabs button[aria-selected="true"] {
+html.space main .tabs button[aria-selected="true"] {
   background: var(--lime);
   color: var(--forest-deep);
 }
-html.space-dark main .season-toggle__thumb {
+html.space main .season-toggle__thumb {
   background: var(--lime);
 }
 
 /* glass cards: content floats over the dots */
-html.space-dark main :is(.price-card, .mini, .level, .result, .tile, .pgroup, .ccard, .callcard, .stamp, .poster, .frame, .map, .tabs, .season-toggle) {
+html.space main :is(.price-card, .mini, .level, .result, .tile, .pgroup, .ccard, .callcard, .stamp, .poster, .frame, .map, .tabs, .season-toggle) {
   background: rgba(14, 34, 22, 0.5);
   border-color: var(--line);
   backdrop-filter: blur(12px) saturate(1.1);
   -webkit-backdrop-filter: blur(12px) saturate(1.1);
 }
-html.space-depth main :is(.price-card, .mini, .level, .result, .tile, .pgroup, .ccard, .callcard, .stamp, .poster, .frame, .map) {
-  background: rgba(10, 26, 16, 0.42);
-  backdrop-filter: blur(18px) saturate(1.15);
-  -webkit-backdrop-filter: blur(18px) saturate(1.15);
-  box-shadow: 0 30px 60px -30px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(245, 240, 230, 0.06);
-}
-html.space-dark main .price-card__foot {
+html.space main .price-card__foot {
   background: transparent;
 }
-html.space-dark main .mini--dark {
+html.space main .mini--dark {
   background: rgba(33, 73, 43, 0.6);
 }
-html.space-dark main .btn--ink,
-html.space-dark main .btn:not([class*="btn--"]) {
+html.space main .btn--ink,
+html.space main .btn:not([class*="btn--"]) {
   --btn-bg: var(--lime);
   --btn-fg: var(--forest-deep);
 }
-html.space-dark main .btn--ink:hover {
+html.space main .btn--ink:hover {
   --btn-bg: #f1ee9e;
 }
-html.space-dark main .path:not(.path--primary) {
+html.space main .path:not(.path--primary) {
   background: rgba(245, 240, 230, 0.08);
   color: var(--ink);
   box-shadow: inset 0 0 0 1px var(--line);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
 }
-html.space-dark main .path:not(.path--primary):hover {
+html.space main .path:not(.path--primary):hover {
   background: rgba(245, 240, 230, 0.14);
 }
-html.space-dark main .final .ball-big {
+html.space main .final .ball-big {
   background: rgba(33, 73, 43, 0.7);
 }
 
 /* the hero photo becomes a card floating in space */
-html.space-dark .hero__shade,
-html.space-dark .hero__lines {
+html.space .hero__shade,
+html.space .hero__lines {
   display: none;
 }
-html.space-dark .hero__media {
+html.space .hero__media {
   inset: auto;
   left: var(--gutter);
   top: calc(var(--header-h) + 72px);
@@ -121,7 +111,7 @@ html.space-dark .hero__media {
     0 0 0 1px rgba(245, 240, 230, 0.08);
 }
 @media (max-width: 900px) {
-  html.space-dark .hero__media {
+  html.space .hero__media {
     position: relative;
     inset: auto;
     width: auto;
@@ -129,66 +119,49 @@ html.space-dark .hero__media {
     min-height: 300px;
     margin: calc(var(--header-h) + 36px) var(--gutter) 0;
   }
-  html.space-dark .hero__inner {
+  html.space .hero__inner {
     margin-top: 28px;
   }
 }
 
 /* the history photo steps aside: "1996" in dots takes its place */
-html.space-dark .heritage__bg,
-html.space-dark .heritage__shade {
+html.space .heritage__bg,
+html.space .heritage__shade {
   display: none;
 }
 
 /* header and phone action bar as smoky glass */
-html.space-dark .header--solid:not(.header--open) {
+html.space .header--solid:not(.header--open) {
   background: rgba(8, 20, 12, 0.72);
   color: var(--paper);
   box-shadow: 0 1px 0 rgba(245, 240, 230, 0.1);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
 }
-html.space-dark .header--solid:not(.header--open) .btn--ink {
+html.space .header--solid:not(.header--open) .btn--ink {
   --btn-bg: var(--lime);
   --btn-fg: var(--forest-deep);
 }
-html.space-dark .announce {
+html.space .announce {
   background: rgba(8, 20, 12, 0.6);
 }
-html.space-dark .actionbar {
+html.space .actionbar {
   background: rgba(8, 20, 12, 0.82);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
-html.space-dark .actionbar .btn--ghost {
+html.space .actionbar .btn--ghost {
   --btn-fg: var(--paper);
   border-color: rgba(245, 240, 230, 0.3);
 }
-html.space-dark .footer {
+html.space .footer {
   border-top: 1px solid rgba(245, 240, 230, 0.1);
 }
 
-/* ---------------------------------------------------------------- light (clay dust) */
-
-html.space-light {
-  background: var(--paper);
-}
-html.space-light .section:not(.section--dark) {
-  background: transparent;
-}
-html.space-light .section--paper2 {
-  background: rgba(236, 229, 214, 0.45);
-}
-html.space-light main :is(.price-card, .mini, .level, .result, .tile, .pgroup, .ccard, .stamp) {
-  background: rgba(251, 248, 242, 0.72);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-}
-
-/* night: while the dot court stands on the right of the screen, the courts and Proflex
+/* while the dot court stands on the right of the screen, the courts and Proflex
    sections keep their text in the left ~70%, so the dots don't run behind it */
 @media (min-width: 901px) {
-  html.space-night :is(#palyak, section[aria-labelledby="proflex-title"]) > .container {
+  html.space :is(#palyak, section[aria-labelledby="proflex-title"]) > .container {
     max-width: none;
     padding-left: max(var(--gutter), calc((100vw - var(--max)) / 2));
     padding-right: 30vw;

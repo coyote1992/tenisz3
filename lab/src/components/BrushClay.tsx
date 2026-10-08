@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useRef } from "react";
 import { priceSeason, tennisPrices } from "@/lib/site";
 import { LabTag } from "./LabTag";
@@ -199,7 +198,7 @@ export function BrushClay() {
             </tbody>
           </table>
           <p className="lab-brush__fine">
-            * 27 hétre szól, alkalmankénti díj. {priceSeason.range} · <Link href="/arak">Minden ár</Link>
+            * 27 hétre szól, alkalmankénti díj. {priceSeason.range}
           </p>
         </div>
         <p className="lab-brush__hint" aria-hidden>

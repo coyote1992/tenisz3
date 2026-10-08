@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { preloadList } from "@/lib/lab/assets";
+import { preloadList } from "../lib/assets";
 import { BallBasket } from "./BallBasket";
 
 /** 42 as a page preloader: one ball per loaded asset; the curtain lifts when the basket is full. */

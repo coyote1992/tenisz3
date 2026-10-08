@@ -74,9 +74,9 @@ export function LivingPhoto() {
       new THREE.TextureLoader().load(u, (t) => {
         t.colorSpace = THREE.NoColorSpace;
       });
-    const img = load("/img/hero-serve.jpg");
+    const img = load("img/hero-serve.jpg");
     img.minFilter = THREE.LinearFilter;
-    const depth = load("/lab/hero-serve-depth.webp");
+    const depth = load("assets/hero-serve-depth.webp");
     const uniforms = {
       uImg: { value: img },
       uDepth: { value: depth },

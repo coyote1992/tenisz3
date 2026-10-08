@@ -9,12 +9,12 @@ import { LabTag } from "./LabTag";
  * and snaps sharp, with a quick flash, as the "shutter" speeds up. Hover replays it.
  */
 const PHOTOS = [
-  { src: "/img/forehand.jpg", alt: "Fiú tenyeresre készül a salakpályán", cap: "Tenyeres", dir: -0.15, span: "wide" },
-  { src: "/img/volley-lunge.jpg", alt: "Játékos mély kitörésben röptézik a háló előtt", cap: "Röpte a hálónál", dir: 0.1, span: "tall" },
-  { src: "/img/junior-forehand.jpg", alt: "Kislány tenyeres ütés közben", cap: "Tenisziskola", dir: 0.05, span: "" },
-  { src: "/img/between-points.jpg", alt: "Két játékos beszélget két labdamenet között", cap: "Két labdamenet között", dir: 0, span: "" },
-  { src: "/img/stadium-court.jpg", alt: "A centerpálya telt lelátóval, felülről", cap: "A centerpálya", dir: 0.35, span: "wide" },
-  { src: "/img/school-group-court.jpg", alt: "A tenisziskola csoportképe a salakpályán", cap: "A Gellért Tenisziskola", dir: 0, span: "" },
+  { src: "img/forehand.jpg", alt: "Fiú tenyeresre készül a salakpályán", cap: "Tenyeres", dir: -0.15, span: "wide" },
+  { src: "img/volley-lunge.jpg", alt: "Játékos mély kitörésben röptézik a háló előtt", cap: "Röpte a hálónál", dir: 0.1, span: "tall" },
+  { src: "img/junior-forehand.jpg", alt: "Kislány tenyeres ütés közben", cap: "Tenisziskola", dir: 0.05, span: "" },
+  { src: "img/between-points.jpg", alt: "Két játékos beszélget két labdamenet között", cap: "Két labdamenet között", dir: 0, span: "" },
+  { src: "img/stadium-court.jpg", alt: "A centerpálya telt lelátóval, felülről", cap: "A centerpálya", dir: 0.35, span: "wide" },
+  { src: "img/school-group-court.jpg", alt: "A tenisziskola csoportképe a salakpályán", cap: "A Gellért Tenisziskola", dir: 0, span: "" },
 ];
 const SPEEDS = ["1/15", "1/30", "1/60", "1/125", "1/250", "1/500", "1/1000", "1/2000"];
 

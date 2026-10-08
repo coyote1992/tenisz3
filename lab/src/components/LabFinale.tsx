@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { useEffect, useState } from "react";
 import { site } from "@/lib/site";
 import { BallBasket } from "./BallBasket";
@@ -36,7 +35,7 @@ function MapWithBasket() {
       )}
       {state !== "ready" && (
         <div className="lab-map__cover">
-          <Image src="/img/courts-13-14.jpg" alt="" fill sizes="(max-width: 900px) 100vw, 50vw" />
+          <img src="img/courts-13-14.jpg" alt="" />
           <div className="lab-map__inner">
             {state === "idle" ? (
               <>

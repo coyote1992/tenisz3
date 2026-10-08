@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import anchors from "@/lib/lab/clay-anchors.json";
-import { frameUrls } from "@/lib/lab/assets";
+import anchors from "../lib/clay-anchors.json";
+import { frameUrls } from "../lib/assets";
 import { LabTag } from "./LabTag";
 
 /**
