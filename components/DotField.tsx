@@ -27,8 +27,19 @@ type Props = {
   onFrame?: (p: number) => void;
   wide?: DotPlace;
   narrow?: DotPlace;
+  /** Optional placement per shape (same order as `shapes`); falls back to wide / narrow. */
+  places?: { wide: DotPlace; narrow: DotPlace }[];
   count?: [number, number];
   loop?: boolean;
+  /** Four colours. "add" glows on dark pages; "normal" is for light pages. */
+  palette?: string[];
+  blend?: "add" | "normal";
+  /** Overall dot opacity multiplier. */
+  alpha?: number;
+  /** Share of dots that never join a shape and stay as a starfield. */
+  halo?: number;
+  /** Loose dots drift with the page scroll by depth (bigger = nearer = faster); 0 = off. */
+  parallax?: number;
   className?: string;
 };
 
@@ -55,27 +66,33 @@ const VERT = /* glsl */ `
   attribute float aCol;                // colour index per state, packed base 4
   attribute vec4 aDot;                 // radius px, phase, drift speed, twinkle speed
   attribute vec2 aStag;                // morph stagger, halo flag
-  uniform float uMorph, uTime, uDpr, uRepelR, uRepelA, uLast;
+  uniform float uMorph, uTime, uDpr, uRepelR, uRepelA, uLast, uAlpha, uScroll, uParallax;
+  uniform vec3 uPlace[${MAX_STATES}];  // per state: centre x, centre y, scale (px per unit)
   uniform float uKind[${MAX_STATES}];  // 0 loose, 1 ball, 2 static shape
   uniform float uSlot[${MAX_STATES}];  // which aT slot a static state uses
   uniform vec2 uRes, uMouse;
-  uniform vec3 uProj;                  // centre x, centre y, scale (px per unit)
   uniform vec3 uPal[4];
   varying vec3 vCol; varying float vA;
 
-  vec2 project(vec3 v){ float k = 4.2 / (4.2 - v.z); return vec2(uProj.x + v.x * uProj.z * k, uProj.y - v.y * uProj.z * k); }
-  vec2 ballPos(){
-    if (aBallType > 1.5) return project(vec3(position.xy, 0.));
+  vec2 project(vec3 v, vec3 pl){ float k = 4.2 / (4.2 - v.z); return vec2(pl.x + v.x * pl.z * k, pl.y - v.y * pl.z * k); }
+  vec2 ballPos(vec3 pl){
+    if (aBallType > 1.5) return project(vec3(position.xy, 0.), pl);
     float a = uTime * .00018, ca = cos(a), sa = sin(a), ct = cos(.35), st = sin(.35);
     float x = position.x * ca + position.z * sa, z = -position.x * sa + position.z * ca;
-    return project(vec3(x, position.y * ct - z * st, position.y * st + z * ct));
+    return project(vec3(x, position.y * ct - z * st, position.y * st + z * ct), pl);
   }
   vec3 slot(float s){ return s < .5 ? aT0 : s < 1.5 ? aT1 : s < 2.5 ? aT2 : s < 3.5 ? aT3 : aT4; }
   vec2 statePos(int k){
     float kind = uKind[k];
-    if (kind < .5) return aNoise * uRes;
-    if (kind < 1.5) return ballPos();
-    return project(slot(uSlot[k]));
+    if (kind < .5) {
+      // the loose starfield; with parallax it scrolls past at a speed set by each dot's depth
+      vec2 q = aNoise * uRes;
+      float depth = .25 + .75 * (aDot.x - .75) / 1.35;
+      q.y = mod(q.y - uScroll * uParallax * depth, uRes.y + 40.) - 20.;
+      return q;
+    }
+    if (kind < 1.5) return ballPos(uPlace[k]);
+    return project(slot(uSlot[k]), uPlace[k]);
   }
   float colIndex(int k){
     float b = k == 0 ? 1. : k == 1 ? 4. : k == 2 ? 16. : k == 3 ? 64. : k == 4 ? 256. : k == 5 ? 1024. : 4096.;
@@ -101,7 +118,7 @@ const VERT = /* glsl */ `
     gl_PointSize = (aDot.x * 2. + 1.) * uDpr;
     vCol = uPal[int(f < .5 ? colIndex(ka) : colIndex(kb))];
     float tw = .5 + .5 * sin(uTime * aDot.w + aDot.y * 13.7);
-    vA = halo > .5 ? .34 : .34 + .48 * tw;
+    vA = (halo > .5 ? .34 : .34 + .48 * tw) * uAlpha;
   }
 `;
 
@@ -119,16 +136,31 @@ const hexRgb = (h: string) => new THREE.Vector3(parseInt(h.slice(1, 3), 16) / 25
 const LAB_WIDE: DotPlace = { x: 0.66, y: 0.52, sw: 0.2, sh: 0.3 };
 const LAB_NARROW: DotPlace = { x: 0.5, y: 0.36, sw: 0.36, sh: 0.3 };
 
-export function DotField({ shapes, stage, onFrame, wide = LAB_WIDE, narrow = LAB_NARROW, count = [7000, 3000], loop = false, className }: Props) {
+export function DotField({
+  shapes,
+  stage,
+  onFrame,
+  wide = LAB_WIDE,
+  narrow = LAB_NARROW,
+  places,
+  count = [7000, 3000],
+  loop = false,
+  palette = COLORS,
+  blend = "add",
+  alpha = 1,
+  halo = 0.07,
+  parallax = 0,
+  className,
+}: Props) {
   const holder = useRef<HTMLDivElement>(null);
   // latest callbacks without re-creating the GL scene
   const cb = useRef({ stage, onFrame });
   cb.current = { stage, onFrame };
-  const cfg = useRef({ shapes, wide, narrow, count, loop });
+  const cfg = useRef({ shapes, wide, narrow, places, count, loop, palette, blend, alpha, halo, parallax });
 
   useEffect(() => {
     const el = holder.current!;
-    const { shapes, wide, narrow, count: counts, loop } = cfg.current;
+    const { shapes, wide, narrow, places, count: counts, loop, palette, blend, alpha, halo, parallax } = cfg.current;
     const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
     const S = Math.min(MAX_STATES, shapes.length + 1);
     let disposed = false, raf = 0, visible = false;
@@ -148,10 +180,13 @@ export function DotField({ shapes, stage, onFrame, wide = LAB_WIDE, narrow = LAB
       uSlot: { value: slots },
       uRes: { value: new THREE.Vector2(1, 1) },
       uMouse: { value: new THREE.Vector2(-1e4, -1e4) },
-      uProj: { value: new THREE.Vector3() },
+      uPlace: { value: Array.from({ length: MAX_STATES }, () => new THREE.Vector3()) },
+      uAlpha: { value: alpha },
+      uScroll: { value: 0 },
+      uParallax: { value: parallax },
       uRepelR: { value: 70 },
       uRepelA: { value: 0 },
-      uPal: { value: COLORS.map(hexRgb) },
+      uPal: { value: palette.map(hexRgb) },
     };
     const mat = new THREE.ShaderMaterial({
       vertexShader: VERT,
@@ -160,10 +195,10 @@ export function DotField({ shapes, stage, onFrame, wide = LAB_WIDE, narrow = LAB
       transparent: true,
       depthTest: false,
       depthWrite: false,
-      // premultiplied additive, like canvas "lighter"
+      // premultiplied: additive glows like canvas "lighter"; normal sits on light pages
       blending: THREE.CustomBlending,
       blendSrc: THREE.OneFactor,
-      blendDst: THREE.OneFactor,
+      blendDst: blend === "add" ? THREE.OneFactor : THREE.OneMinusSrcAlphaFactor,
     });
     const geo = new THREE.BufferGeometry();
 
@@ -177,7 +212,7 @@ export function DotField({ shapes, stage, onFrame, wide = LAB_WIDE, narrow = LAB
         const pr = rand(i, 20);
         base[i] = pr < 0.45 ? 0 : pr < 0.75 ? 1 : pr < 0.9 ? 2 : 3;
         dot.set([0.75 + rand(i, 21) * 1.35, rand(i, 22) * TAU, 0.00026 + rand(i, 23) * 0.00016, 0.0007 + rand(i, 24) * 0.0008], i * 4);
-        stag.set([rand(i, 8) * 0.25, rand(i, 30) < 0.07 ? 1 : 0], i * 2); // 7% stay loose as a starfield
+        stag.set([rand(i, 8) * 0.25, rand(i, 30) < halo ? 1 : 0], i * 2); // a share stays loose as a starfield
         noise.set([rand(i, 1), rand(i, 2)], i * 2);
         // ball: a seam, a silhouette rim and a sprinkle of surface
         const r = rand(i, 40);
@@ -244,8 +279,11 @@ export function DotField({ shapes, stage, onFrame, wide = LAB_WIDE, narrow = LAB
       renderer.setSize(W, H, false);
       uniforms.uDpr.value = d;
       uniforms.uRes.value.set(W, H);
-      const pl = W > 900 ? wide : narrow;
-      uniforms.uProj.value.set(W * pl.x, pl.py ?? H * pl.y, Math.min(W * pl.sw, H * pl.sh));
+      for (let k = 1; k < MAX_STATES; k++) {
+        const set = places?.[k - 1];
+        const pl = W > 900 ? set?.wide ?? wide : set?.narrow ?? narrow;
+        uniforms.uPlace.value[k].set(W * pl.x, pl.py ?? H * pl.y, Math.min(W * pl.sw, H * pl.sh));
+      }
       // the cleared circle scales a little with the screen: ~100 px on a laptop
       uniforms.uRepelR.value = Math.max(56, Math.min(innerWidth, innerHeight) * 0.11);
     };
@@ -283,6 +321,7 @@ export function DotField({ shapes, stage, onFrame, wide = LAB_WIDE, narrow = LAB
       pres += ((here ? 1 : 0) - pres) * Math.min(1, dt * 0.004);
       uniforms.uRepelA.value = reduce ? 0 : 42 * pres;
       uniforms.uMorph.value = p;
+      uniforms.uScroll.value = scrollY;
       uniforms.uTime.value = reduce ? 0 : time;
       renderer.render(scene, camera);
       cb.current.onFrame?.(p);

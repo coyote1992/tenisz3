@@ -6,42 +6,23 @@ import { MapEmbed } from "@/components/MapEmbed";
 import { ArrowRight, ArrowUpRight, Check, Phone } from "@/components/Icons";
 import { history, site, tennisPrices } from "@/lib/site";
 
-/**
- * Optional extras the /minta preview pages slot into the homepage (dot field, net dividers).
- * The live homepage renders with no slots, so it ships none of their code.
- */
-export type HomeSlots = {
-  heroMedia?: React.ReactNode; // replaces the hero photo (and its line drawing)
-  heroClass?: string;
-  afterHero?: React.ReactNode;
-  afterCourts?: React.ReactNode;
-  booking?: React.ReactNode; // rendered inside the booking section, before its content
-  bookingClass?: string;
-  heritage?: React.ReactNode; // rendered inside the history section, behind its content
-  heritageClass?: string;
-  afterSchool?: React.ReactNode;
-  beforeFinal?: React.ReactNode;
-};
-
-export function HomePage({ slots = {} }: { slots?: HomeSlots }) {
+/** The homepage. The /minta preview pages render it too, restyled over a dot-field background. */
+export function HomePage() {
   return (
     <>
       {/* ------------------------------------------------ Hero */}
-      <section className={["hero", slots.heroClass].filter(Boolean).join(" ")} aria-labelledby="hero-title">
-        {slots.heroMedia ?? (
-          <div className="hero__media">
-            <Image
-              src="/img/hero-serve.jpg"
-              alt="Teniszezők a Gellért Szabadidőközpont salakpályáján"
-              fill
-              priority
-              sizes="100vw"
-              quality={85}
-            />
-          </div>
-        )}
+      <section className="hero" aria-labelledby="hero-title">
+        <div className="hero__media">
+          <Image
+            src="/img/hero-serve.jpg"
+            alt="Teniszezők a Gellért Szabadidőközpont salakpályáján"
+            fill
+            priority
+            sizes="100vw"
+            quality={85}
+          />
+        </div>
         <div className="hero__shade" aria-hidden />
-        {!slots.heroMedia && (
         <svg className="hero__lines" viewBox="0 0 900 520" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden>
           <rect x="40" y="40" width="820" height="440" pathLength="1" />
           <line x1="40" y1="95" x2="860" y2="95" pathLength="1" />
@@ -51,7 +32,6 @@ export function HomePage({ slots = {} }: { slots?: HomeSlots }) {
           <line x1="260" y1="260" x2="640" y2="260" pathLength="1" />
           <line x1="450" y1="30" x2="450" y2="490" pathLength="1" strokeWidth="2.4" />
         </svg>
-        )}
 
         <div className="container hero__inner">
           <div className="hero__content">
@@ -95,8 +75,6 @@ export function HomePage({ slots = {} }: { slots?: HomeSlots }) {
         </div>
       </section>
 
-      {slots.afterHero}
-
       {/* ------------------------------------------------ Courts */}
       <section className="section" id="palyak" aria-labelledby="palyak-title">
         <div className="container">
@@ -137,8 +115,6 @@ export function HomePage({ slots = {} }: { slots?: HomeSlots }) {
           <CourtPlan />
         </div>
       </section>
-
-      {slots.afterCourts}
 
       {/* ------------------------------------------------ Proflex */}
       <section className="section section--paper2" aria-labelledby="proflex-title">
@@ -183,8 +159,7 @@ export function HomePage({ slots = {} }: { slots?: HomeSlots }) {
       </section>
 
       {/* ------------------------------------------------ Booking */}
-      <section className={["section section--dark", slots.bookingClass].filter(Boolean).join(" ")} id="foglalas" aria-labelledby="foglalas-title">
-        {slots.booking}
+      <section className="section section--dark" id="foglalas" aria-labelledby="foglalas-title">
         <div className="container">
           <div className="head">
             <div>
@@ -332,12 +307,11 @@ export function HomePage({ slots = {} }: { slots?: HomeSlots }) {
       </section>
 
       {/* ------------------------------------------------ Heritage */}
-      <section className={["heritage", slots.heritageClass].filter(Boolean).join(" ")} id="tortenet" aria-labelledby="tortenet-title">
+      <section className="heritage" id="tortenet" aria-labelledby="tortenet-title">
         <div className="heritage__bg">
           <Image src="/img/stadium-court.jpg" alt="" fill sizes="100vw" quality={80} />
         </div>
         <div className="heritage__shade" aria-hidden />
-        {slots.heritage}
         <div className="container">
           <div className="heritage__top">
             <p className="eyebrow eyebrow--light reveal">Versenytenisz</p>
@@ -446,8 +420,6 @@ export function HomePage({ slots = {} }: { slots?: HomeSlots }) {
         </div>
       </section>
 
-      {slots.afterSchool}
-
       {/* ------------------------------------------------ Centre */}
       <section className="section section--paper2" aria-labelledby="kozpont-title">
         <div className="container">
@@ -541,8 +513,6 @@ export function HomePage({ slots = {} }: { slots?: HomeSlots }) {
           </div>
         </div>
       </section>
-
-      {slots.beforeFinal}
 
       {/* ------------------------------------------------ Final CTA */}
       <section className="section section--tight section--paper2">
