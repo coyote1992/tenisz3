@@ -376,23 +376,7 @@
 }
 
 /* ---------------------------------------------------------------- 12 net divider */
-.lab-net {
-  position: relative;
-  height: 150px;
-  background: var(--paper);
-}
-.lab-net--dark {
-  background: var(--bp);
-  height: 130px;
-}
-.lab-net canvas {
-  position: absolute;
-  inset: 0 var(--gutter);
-  width: calc(100% - 2 * var(--gutter));
-  height: 100%;
-  display: block;
-}
-.lab-net .lab-tag {
+.net-divider .lab-tag {
   bottom: auto;
   top: 8px;
 }

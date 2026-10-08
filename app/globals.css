@@ -2962,3 +2962,45 @@ ol {
   55% { transform: translateY(-1px); }
   100% { transform: none; }
 }
+
+/* ---------- Net divider (between sections) ---------- */
+
+.net-divider {
+  position: relative;
+  height: 130px;
+  background: var(--paper);
+}
+.net-divider--dark {
+  background: #0d2016;
+}
+.net-divider canvas {
+  position: absolute;
+  inset: 0 var(--gutter);
+  width: calc(100% - 2 * var(--gutter));
+  height: 100%;
+  display: block;
+}
+
+/* ---------- Preview label on /minta pages ---------- */
+
+.minta-badge {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  z-index: 70;
+  translate: -50% 0;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--clay);
+  color: var(--paper);
+  font-size: 0.8rem;
+  font-weight: 600;
+  box-shadow: 0 10px 24px -10px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  white-space: nowrap;
+}
+@media (max-width: 900px) {
+  .minta-badge {
+    bottom: 78px;
+  }
+}

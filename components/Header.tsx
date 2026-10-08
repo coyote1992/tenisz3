@@ -9,7 +9,7 @@ import { Phone } from "./Icons";
 
 export function Header() {
   const pathname = usePathname();
-  const overlay = pathname === "/" || pathname === "/lab";
+  const overlay = pathname === "/" || pathname === "/lab" || pathname.startsWith("/minta/");
   const [solid, setSolid] = useState(!overlay);
   const [open, setOpen] = useState(false);
 

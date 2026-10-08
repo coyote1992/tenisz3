@@ -1,4 +1,4 @@
-// Point-cloud targets for the flow-field morph (idea 86).
+// Point-cloud targets for the dot field (DotField): ball, racket, player, court, words.
 // Every shape returns N positions (world units, roughly -1.6..1.6) and N colours (0..1 rgb).
 import { drawAthlete } from "@/lib/rally/athlete2d.js";
 import { fk, POSES } from "@/lib/rally/pose.js";
