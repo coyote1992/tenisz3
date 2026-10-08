@@ -185,12 +185,12 @@ html.space-light main :is(.price-card, .mini, .level, .result, .tile, .pgroup, .
   -webkit-backdrop-filter: blur(10px);
 }
 
-/* night: an empty band above the court plan, where the dot court forms */
-html.space-night .plan__board {
-  margin-top: clamp(300px, 26vw, 380px);
-}
-@media (max-width: 900px) {
-  html.space-night .plan__board {
-    margin-top: 280px;
+/* night: while the dot court stands on the right of the screen, the courts and Proflex
+   sections keep their text in the left ~70%, so the dots don't run behind it */
+@media (min-width: 901px) {
+  html.space-night :is(#palyak, section[aria-labelledby="proflex-title"]) > .container {
+    max-width: none;
+    padding-left: max(var(--gutter), calc((100vw - var(--max)) / 2));
+    padding-right: 30vw;
   }
 }

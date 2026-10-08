@@ -26,13 +26,8 @@ const phone = at(0.5, 0.3, 0.34, 0.2);
 const STEPS: Record<SpaceTheme, Step[]> = {
   // dark page; shapes sit beside the content, alternating sides
   night: [
-    // the court forms in an empty band above the court plan (see space.css) and scrolls with it
-    {
-      anchor: "#palyak",
-      shape: "courtLines",
-      wide: { x: 0, y: 0, sw: 0.12, sh: 0.3, follow: ".plan__board" },
-      narrow: { x: 0, y: 0, sw: 0.3, sh: 0.2, follow: ".plan__board" },
-    },
+    // the court sits on the right; space.css keeps these sections' text to the left of it
+    { anchor: "#palyak", shape: "courtLines", wide: at(0.84, 0.64, 0.12, 0.3), narrow: phone },
     { anchor: "#foglalas", shape: "racket", wide: at(0.515, 0.62, 0.1, 0.28), narrow: phone },
     // beside the title, complete when the "Itt Davis Kupát játszottak" title is mid-screen
     { anchor: "#tortenet-title", done: 0.5, shape: { word: "1996" }, wide: at(0.7, 0.5, 0.2, 0.3), narrow: at(0.5, 0.42, 0.34, 0.2) },
