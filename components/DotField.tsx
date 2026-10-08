@@ -14,12 +14,14 @@ import { court, player, racket, word, type Cloud } from "@/lib/dots/shapes";
  * and `stage()` can keep counting up (1, 2, 3, ...) for an endless cycle.
  */
 
-export type DotShape = "ball" | "racket" | "player" | "court" | "courtLines" | { word: string };
+/** "blackhole": the shape's dots spiral into the place's centre and vanish (the starfield stays). */
+export type DotShape = "ball" | "racket" | "player" | "court" | "courtLines" | "blackhole" | { word: string };
 /**
  * Where the shapes sit: centre x and y as fractions of the box (or `py` px from its top),
- * scale = min(width·sw, height·sh).
+ * scale = min(width·sw, height·sh). With `follow`, the centre instead tracks an element on the
+ * page as it scrolls: its horizontal middle, in the empty band its top margin leaves above it.
  */
-export type DotPlace = { x: number; y: number; sw: number; sh: number; py?: number };
+export type DotPlace = { x: number; y: number; sw: number; sh: number; py?: number; follow?: string };
 
 type Props = {
   shapes: DotShape[];
@@ -71,7 +73,7 @@ const VERT = /* glsl */ `
   uniform float uMorph, uTime, uDpr, uRepelR, uRepelA, uLast, uAlpha, uScroll, uParallax, uSpin;
   uniform float uStateA[${MAX_STATES}]; // per state opacity
   uniform vec3 uPlace[${MAX_STATES}];  // per state: centre x, centre y, scale (px per unit)
-  uniform float uKind[${MAX_STATES}];  // 0 loose, 1 ball, 2 static shape
+  uniform float uKind[${MAX_STATES}];  // 0 loose, 1 ball, 2 static shape, 3 black hole
   uniform float uSlot[${MAX_STATES}];  // which aT slot a static state uses
   uniform vec2 uRes, uMouse;
   uniform vec3 uPal[4];
@@ -95,6 +97,7 @@ const VERT = /* glsl */ `
       return q;
     }
     if (kind < 1.5) return ballPos(uPlace[k]);
+    if (kind > 2.5) return uPlace[k].xy;
     return project(slot(uSlot[k]), uPlace[k]);
   }
   float colIndex(int k){
@@ -107,10 +110,18 @@ const VERT = /* glsl */ `
     float local = uMorph - float(k);
     float f = halo > .5 ? 0. : smoothstep(aStag.x, aStag.x + .75, local);
     int ka = halo > .5 ? 0 : k, kb = halo > .5 ? 0 : k + 1;
-    vec2 pos = mix(statePos(ka), statePos(kb), f);
+    float sinkA = uKind[ka] > 2.5 ? 1. : 0., sinkB = uKind[kb] > 2.5 ? 1. : 0.;
+    vec2 pa = statePos(ka), pb = statePos(kb);
+    // into a black hole: pulled in ever faster, spiralling round the centre
+    vec2 pos = mix(pa, pb, sinkB > .5 ? f * f : f);
+    if (sinkB > .5) {
+      float ang = f * f * 5.;
+      vec2 d = pos - pb;
+      pos = pb + vec2(d.x * cos(ang) - d.y * sin(ang), d.x * sin(ang) + d.y * cos(ang));
+    }
     // loose dots wander, shaped dots only breathe
     float loose = halo > .5 ? 1. : 1. - clamp(uMorph, 0., 1.);
-    float wob = uTime * aDot.z + aDot.y, amp = 3. + 12. * loose;
+    float wob = uTime * aDot.z + aDot.y, amp = (3. + 12. * loose) * (sinkB > .5 ? 1. - f : 1.);
     pos += vec2(cos(wob), sin(wob * 1.27 + aDot.y)) * amp;
     // the cursor clears a small round space: dots slide out of the way and drift back
     vec2 d = pos - uMouse;
@@ -118,10 +129,11 @@ const VERT = /* glsl */ `
     pos += d * inversesqrt(r2 + 1.) * uRepelA * exp(-r2 / (uRepelR * uRepelR));
     vec2 clip = pos / uRes * 2. - 1.;
     gl_Position = vec4(clip.x, -clip.y, 0., 1.);
-    gl_PointSize = (aDot.x * 2. + 1.) * uDpr;
+    gl_PointSize = (aDot.x * 2. + 1.) * uDpr * (sinkB > .5 ? 1. - .7 * f : 1.);
     vCol = uPal[int(f < .5 ? colIndex(ka) : colIndex(kb))];
     float tw = .5 + .5 * sin(uTime * aDot.w + aDot.y * 13.7);
     vA = (halo > .5 ? .34 : .34 + .48 * tw) * uAlpha * (halo > .5 ? 1. : mix(uStateA[ka], uStateA[kb], f));
+    if (halo < .5) vA *= sinkA > .5 ? 0. : sinkB > .5 ? 1. - smoothstep(.6, 1., f) : 1.;
   }
 `;
 
@@ -238,10 +250,10 @@ export function DotField({
       }
       // static shapes go into the aT slots; the ball is special (it turns), the loose state is state 0
       const clouds: Cloud[] = [];
-      const stateCloud: (Cloud | "ball")[] = [];
+      const stateCloud: (Cloud | "ball" | "blackhole")[] = [];
       for (const sh of shapes.slice(0, S - 1)) {
-        if (sh === "ball") {
-          stateCloud.push("ball");
+        if (sh === "ball" || sh === "blackhole") {
+          stateCloud.push(sh);
           continue;
         }
         const c =
@@ -251,15 +263,15 @@ export function DotField({
       }
       if (disposed) return;
       stateCloud.forEach((c, i) => {
-        kinds[i + 1] = c === "ball" ? 1 : 2;
-        slots[i + 1] = c === "ball" ? 0 : clouds.indexOf(c);
+        kinds[i + 1] = c === "ball" ? 1 : c === "blackhole" ? 3 : 2;
+        slots[i + 1] = typeof c === "string" ? 0 : clouds.indexOf(c);
       });
       // colour per state, packed as base-4 digits
       for (let i = 0; i < n; i++) {
         const ballCol = btype[i] === 1 ? 1 : base[i] === 2 ? 3 : base[i] === 1 ? 0 : base[i];
         let v = base[i], m = 4;
         for (const c of stateCloud) {
-          v += (c === "ball" ? ballCol : paletteIndex(c.col[i * 3], c.col[i * 3 + 1], c.col[i * 3 + 2])) * m;
+          v += (c === "ball" ? ballCol : c === "blackhole" ? base[i] : paletteIndex(c.col[i * 3], c.col[i * 3 + 1], c.col[i * 3 + 2])) * m;
           m *= 4;
         }
         col[i] = v;
@@ -289,11 +301,26 @@ export function DotField({
       for (let k = 1; k < MAX_STATES; k++) {
         const set = places?.[k - 1];
         const pl = W > 900 ? set?.wide ?? wide : set?.narrow ?? narrow;
+        active[k] = pl;
         uniforms.uPlace.value[k].set(W * pl.x, pl.py ?? H * pl.y, Math.min(W * pl.sw, H * pl.sh));
       }
+      follow();
       // the cleared circle scales a little with the screen: ~100 px on a laptop
       uniforms.uRepelR.value = Math.max(56, Math.min(innerWidth, innerHeight) * 0.11);
     };
+    // places that track an element: centred on it horizontally, in the band its top margin leaves
+    const active: DotPlace[] = [];
+    function follow() {
+      for (let k = 1; k < MAX_STATES; k++) {
+        const sel = active[k]?.follow;
+        const t = sel ? document.querySelector(sel) : null;
+        if (!t) continue;
+        const r = t.getBoundingClientRect(), box = el.getBoundingClientRect();
+        const band = parseFloat(getComputedStyle(t).marginTop) || 0;
+        uniforms.uPlace.value[k].x = r.left - box.left + r.width / 2;
+        uniforms.uPlace.value[k].y = r.top - box.top - band / 2;
+      }
+    }
     const ro = new ResizeObserver(resize);
     ro.observe(el);
 
@@ -329,6 +356,7 @@ export function DotField({
       uniforms.uRepelA.value = reduce ? 0 : 42 * pres;
       uniforms.uMorph.value = p;
       uniforms.uScroll.value = scrollY;
+      follow();
       uniforms.uTime.value = reduce ? 0 : time;
       renderer.render(scene, camera);
       cb.current.onFrame?.(p);

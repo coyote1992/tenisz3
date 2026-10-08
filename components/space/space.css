@@ -184,3 +184,13 @@ html.space-light main :is(.price-card, .mini, .level, .result, .tile, .pgroup, .
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
 }
+
+/* night: an empty band above the court plan, where the dot court forms */
+html.space-night .plan__board {
+  margin-top: clamp(300px, 26vw, 380px);
+}
+@media (max-width: 900px) {
+  html.space-night .plan__board {
+    margin-top: 280px;
+  }
+}

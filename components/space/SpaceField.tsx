@@ -26,13 +26,20 @@ const phone = at(0.5, 0.3, 0.34, 0.2);
 const STEPS: Record<SpaceTheme, Step[]> = {
   // dark page; shapes sit beside the content, alternating sides
   night: [
-    { anchor: "#palyak", shape: "courtLines", wide: at(0.84, 0.64, 0.12, 0.3), narrow: phone },
+    // the court forms in an empty band above the court plan (see space.css) and scrolls with it
+    {
+      anchor: "#palyak",
+      shape: "courtLines",
+      wide: { x: 0, y: 0, sw: 0.12, sh: 0.3, follow: ".plan__board" },
+      narrow: { x: 0, y: 0, sw: 0.3, sh: 0.2, follow: ".plan__board" },
+    },
     { anchor: "#foglalas", shape: "racket", wide: at(0.515, 0.62, 0.1, 0.28), narrow: phone },
-    // centred, and complete when the "Itt Davis Kupát játszottak" title is mid-screen
-    { anchor: "#tortenet-title", done: 0.5, shape: { word: "1996" }, wide: at(0.5, 0.5, 0.36, 0.5), narrow: at(0.5, 0.45, 0.36, 0.3), alpha: 0.85 },
+    // beside the title, complete when the "Itt Davis Kupát játszottak" title is mid-screen
+    { anchor: "#tortenet-title", done: 0.5, shape: { word: "1996" }, wide: at(0.7, 0.5, 0.2, 0.3), narrow: at(0.5, 0.42, 0.34, 0.2) },
     // large, centred, slowly spinning, behind everything
     { anchor: "#tenisziskola", shape: "ball", wide: at(0.5, 0.5, 0.24, 0.42), narrow: at(0.5, 0.45, 0.42, 0.3), alpha: 0.85 },
-    { anchor: ".final", shape: { word: "Gellért" }, wide: at(0.5, 0.45, 0.34, 0.5), narrow: at(0.5, 0.4, 0.3, 0.3), alpha: 0.85 },
+    // then the shape's dots spiral into the middle of the screen and vanish; the stars stay
+    { anchor: ".final", shape: "blackhole", wide: at(0.5, 0.5, 0.1, 0.1), narrow: at(0.5, 0.5, 0.1, 0.1) },
   ],
   // light page; dark clay-dust dots, beside the light sections
   dust: [
