@@ -1,0 +1,46 @@
+<!doctype html>
+<!-- dot-space on a plain HTML page. Serve the kit folder over http (WebGL needs it), e.g.
+     npx serve kits/dot-space  →  http://localhost:3000/examples/plain.html -->
+<html lang="en" class="space">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>dot-space example</title>
+<link rel="stylesheet" href="../dist/space.css">
+<style>
+  /* the site's own side of the theme: light text, content in front of the dots */
+  body { margin: 0; font: 17px/1.6 system-ui, sans-serif; color: #f2eee4; }
+  section { min-height: 140vh; padding: 12vh 6vw; box-sizing: border-box; }
+  .copy { max-width: 34rem; }
+  h1, h2 { font: italic 400 clamp(2.4rem, 5vw, 4.4rem)/1 Georgia, serif; margin: 0 0 .4em; }
+  .card { margin-top: 2rem; max-width: 30rem; padding: 1.4rem; border-radius: 12px; background: rgba(14, 34, 22, .5);
+          border: 1px solid rgba(245, 240, 230, .14); backdrop-filter: blur(12px); }
+  .right .copy { margin-left: auto; }
+</style>
+</head>
+<body>
+  <section id="hero"><div class="copy"><h1>Example Tennis Club</h1><p>Scroll slowly.</p></div></section>
+  <section id="courts"><div class="copy"><h2>Eight clay courts</h2><p>The court forms on the right, beside this text.</p></div></section>
+  <section id="lessons" class="right"><div class="copy"><h2>Lessons</h2><p>The racket stands on the left.</p><div class="card">Glass card: the dots show through, softly.</div></div></section>
+  <section id="history"><div class="copy"><h2 id="history-title">Since 1978</h2><p>The year forms beside the title, complete when the title is mid-screen.</p></div></section>
+  <section id="club"><div class="copy"><h2>The club</h2><p>A big, faint ball spins behind everything.</p></div></section>
+  <section id="end"><div class="copy"><h2>Book a court</h2><p>And the dots fall into a black hole.</p></div></section>
+
+  <script type="module">
+    import { mountSpace, at } from "../dist/dot-space.js";
+    const phone = at(0.5, 0.3, 0.34, 0.2);
+    mountSpace({
+      // accent, light, warm, secondary
+      palette: ["#e6e28c", "#f5f0e6", "#e5875a", "#c9d34f"],
+      font: "italic 400 230px Georgia, serif",
+      steps: [
+        { anchor: "#courts", shape: "courtLines", wide: at(0.76, 0.55, 0.12), narrow: phone },
+        { anchor: "#lessons", shape: "racket", wide: at(0.22, 0.55, 0.1, 0.28), narrow: phone },
+        { anchor: "#history-title", done: 0.5, shape: { word: "1978" }, wide: at(0.7, 0.5, 0.2), narrow: at(0.5, 0.3, 0.34, 0.2) },
+        { anchor: "#club", shape: "ball", wide: at(0.5, 0.5, 0.24, 0.42), narrow: at(0.5, 0.45, 0.42, 0.3), alpha: 0.85 },
+        { anchor: "#end", shape: "blackhole", wide: at(0.5, 0.5, 0.1, 0.1), narrow: at(0.5, 0.5, 0.1, 0.1) },
+      ],
+    });
+  </script>
+</body>
+</html>

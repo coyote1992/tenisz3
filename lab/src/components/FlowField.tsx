@@ -1,12 +1,14 @@
 "use client";
 
 import { useRef } from "react";
-import { DotField, type DotShape } from "@/components/DotField";
+import { DotField } from "@/kits/dot-space/engine/react/DotField";
+import type { ShapeSpec } from "@/kits/dot-space/engine";
+import { player } from "@/lib/dots/shapes";
 import { LabTag } from "./LabTag";
 
 /**
  * 86 · Spin flow field, after thedent.ai's ambient background.
- * 7 000 crisp dots (3 000 on phones) from the shared DotField engine (WebGL).
+ * 7 000 crisp dots (3 000 on phones) from the dot-space kit's engine (WebGL).
  * They start as a loose starfield and, as you scroll, glide (each with its own small delay)
  * into a ball, a racket, a serving player, the court and the club's name. Morphs are eased
  * slowly; every dot keeps a slow drift and twinkle. Dots near the cursor slide out of its way
@@ -46,7 +48,7 @@ const sm = (a: number, b: number, x: number) => {
   const t = clamp01((x - a) / (b - a));
   return t * t * (3 - 2 * t);
 };
-const SHAPES: DotShape[] = ["ball", "racket", "player", "court", { word: "Gellért" }];
+const SHAPES: ShapeSpec[] = ["ball", "racket", { cloud: player }, "court", { word: "Gellért", font: 'italic 400 230px "Newsreader Variable", Georgia, serif' }];
 
 export function FlowField() {
   const wrap = useRef<HTMLElement>(null);
@@ -84,7 +86,19 @@ export function FlowField() {
   return (
     <section ref={wrap} className="lab-flow" aria-label="Bevezető">
       <div className="lab-flow__stage">
-        <DotField shapes={SHAPES} stage={stage} onFrame={onFrame} className="lab-flow__canvas" />
+        <DotField
+          shapes={SHAPES}
+          stage={stage}
+          onFrame={onFrame}
+          className="lab-flow__canvas"
+          wide={{ x: 0.66, y: 0.52, sw: 0.2, sh: 0.3 }}
+          narrow={{ x: 0.5, y: 0.36, sw: 0.36, sh: 0.3 }}
+          alpha={1}
+          halo={0.07}
+          parallax={0}
+          ballSpin={0.00018}
+          paused={() => document.documentElement.classList.contains("lab-loading")}
+        />
         <div className="container lab-flow__copy">
           <div ref={intro} className="lab-flow__intro">
             <p className="eyebrow eyebrow--light">Labor · tizenkét ötlet élesben</p>
